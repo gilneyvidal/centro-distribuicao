@@ -1335,8 +1335,8 @@
                     .select('*')
                     .single();
 
-                document.getElementById('relTotalProcessado').textContent = 
-                    (relatorio?.total_entradas || 0) + (relatorio?.total_saidas || 0);
+                // 🎯 CORREÇÃO AQUI: Mostra apenas total_saidas (pacotes processados)
+                document.getElementById('relTotalProcessado').textContent = relatorio?.total_saidas || 0;
                 document.getElementById('relLucroTotal').textContent = 'R$ ' + (relatorio?.lucro_total || 0).toFixed(2);
 
                 const { data: historico, error } = await supabase
