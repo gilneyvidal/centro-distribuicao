@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema CD - Centro de Distribuição</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+
+        /* TELA DE LOGIN */
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .login-box h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        /* SISTEMA PRINCIPAL */
+        .sistema {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .header h2 {
+            color: #667eea;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-info span {
+            display: block;
+            color: #666;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .badge-admin {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-operador {
+            background: #28a745;
+            color: white;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .card h3 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .menu-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th, table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        #video-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto;
+        }
+
+        #video {
+            width: 100%;
+            border-radius: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 14px;
+            width: auto;
+            display: inline-block;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- TELA DE LOGIN -->
+        <div id="telaLogin" class="login-box">
+            <h1>🏢 Sistema CD</h1>
+            <h3 style="text-align: center; color: #666; margin-bottom: 30px;">Centro de Distribuição</h3>
+            
+            <div class="input-group">
+                <label>Usuário</label>
+                <input type="text" id="loginUsuario" placeholder="Digite seu usuário">
+            </div>
+            
+            <div class="input-group">
+                <label>Senha</label>
+                <input type="password" id="loginSenha" placeholder="Digite sua senha">
+            </div>
+            
+            <button class="btn" onclick="fazerLogin()">Entrar</button>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <p style="font-size: 12px; color: #666; margin-bottom: 10px;"><strong>👨‍💼 Acesso Admin:</strong></p>
+                <p style="font-size: 12px; color: #666;">Usuário: <strong>admin</strong> | Senha: <strong>admin123</strong></p>
+                <p style="font-size: 12px; color: #666; margin-top: 10px;"><strong>👷 Acesso Operador:</strong></p>
+                <p style="font-size: 12px; color: #666;">Usuário: <strong>operador</strong> | Senha: <strong>oper123</strong></p>
+            </div>
+        </div>
+
+        <!-- SISTEMA PRINCIPAL -->
+        <div id="telaSistema" class="sistema hidden">
+            <div class="header">
+                <h2>📦 Sistema de Gestão CD</h2>
+                <div class="user-info">
+                    <span>Usuário: <strong id="nomeUsuario"></strong></span>
+                    <span class="badge" id="tipoUsuario"></span>
+                    <button class="btn btn-secondary btn-small" onclick="fazerLogout()" style="margin-top: 10px;">Sair</button>
+                </div>
+            </div>
+
+            <!-- DASHBOARD -->
+            <div class="dashboard">
+                <div class="card">
+                    <h3 id="totalPacotes">0</h3>
+                    <p>📦 Pacotes no Depósito</p>
+                </div>
+                <div class="card">
+                    <h3 id="totalLucro">R$ 0,00</h3>
+                    <p>💰 Lucro Total</p>
+                </div>
+                <div class="card">
+                    <h3 id="totalEntradas">0</h3>
+                    <p>📥 Entradas Hoje</p>
+                </div>
+                <div class="card">
+                    <h3 id="totalSaidas">0</h3>
+                    <p>📤 Saídas Hoje</p>
+                </div>
+            </div>
+
+            <!-- MENU DE ABAS -->
+            <div class="menu-tabs">
+                <button class="tab-btn active" onclick="abrirAba('entrada')">📥 Entrada de Pacotes</button>
+                <button class="tab-btn" onclick="abrirAba('saida')">📤 Saída de Pacotes</button>
+                <button class="tab-btn" onclick="abrirAba('estoque')">📋 Estoque</button>
+                <button class="tab-btn" onclick="abrirAba('relatorio')">📊 Relatórios</button>
+                <button class="tab-btn" id="tabConfig" onclick="abrirAba('config')">⚙️ Configurações</button>
+            </div>
+
+            <!-- ABA: ENTRADA DE PACOTES -->
+            <div id="aba-entrada" class="tab-content active">
+                <h3>📥 Registrar Entrada de Pacote</h3>
+                
+                <div style="margin: 20px 0;">
+                    <button class="btn btn-success" onclick="abrirCamera()">📷 Escanear Código</button>
+                    <div id="video-container" class="hidden">
+                        <video id="video" autoplay></video>
+                        <button class="btn btn-danger" onclick="fecharCamera()">Fechar Câmera</button>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Código do Pacote *</label>
+                        <input type="text" id="codigoPacote" placeholder="Escaneie ou digite">
+                    </div>
+                    <div class="input-group">
+                        <label>Fornecedor/Remetente *</label>
+                        <input type="text" id="fornecedor" placeholder="Nome do fornecedor">
+                    </div>
+                    <div class="input-group">
+                        <label>Cliente/Recebedor *</label>
+                        <input type="text" id="cliente" placeholder="Nome do cliente">
+                    </div>
+                    <div class="input-group">
+                        <label>Telefone do Cliente</label>
+                        <input type="text" id="telefoneCliente" placeholder="(00) 00000-0000">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Observações</label>
+                    <input type="text" id="observacoes" placeholder="Informações adicionais">
+                </div>
+
+                <div class="alert alert-success">
+                    <strong>📍 Localização Sugerida:</strong> <span id="localizacaoSugerida">-</span>
+                </div>
+
+                <button class="btn" onclick="registrarEntrada()">✅ Registrar Entrada</button>
+            </div>
+
+            <!-- ABA: SAÍDA DE PACOTES -->
+            <div id="aba-saida" class="tab-content">
+                <h3>📤 Registrar Saída de Pacote</h3>
+                
+                <div style="margin: 20px 0;">
+                    <button class="btn btn-success" onclick="abrirCameraSaida()">📷 Escanear Código</button>
+                </div>
+
+                <div class="input-group">
+                    <label>Código do Pacote *</label>
+                    <input type="text" id="codigoPacoteSaida" placeholder="Escaneie ou digite">
+                </div>
+
+                <div id="infoPacote" class="hidden" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h4>Informações do Pacote:</h4>
+                    <p><strong>Cliente:</strong> <span id="infoCliente"></span></p>
+                    <p><strong>Fornecedor:</strong> <span id="infoFornecedor"></span></p>
+                    <p><strong>Localização:</strong> <span id="infoLocalizacao"></span></p>
+                    <p><strong>Data Entrada:</strong> <span id="infoDataEntrada"></span></p>
+                </div>
+
+                <button class="btn" onclick="buscarPacote()">🔍 Buscar Pacote</button>
+                <button class="btn btn-success hidden" id="btnConfirmarSaida" onclick="registrarSaida()">✅ Confirmar Saída</button>
+            </div>
+
+            <!-- ABA: ESTOQUE -->
+            <div id="aba-estoque" class="tab-content">
+                <h3>📋 Estoque Atual</h3>
+                
+                <div class="input-group">
+                    <input type="text" id="buscaEstoque" placeholder="🔍 Buscar por código, cliente ou fornecedor..." onkeyup="filtrarEstoque()">
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Cliente</th>
+                            <th>Fornecedor</th>
+                            <th>Localização</th>
+                            <th>Data Entrada</th>
+                            <th>Dias no CD</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaEstoque">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #999;">Nenhum pacote no estoque</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ABA: RELATÓRIOS -->
+            <div id="aba-relatorio" class="tab-content">
+                <h3>📊 Relatórios e Histórico</h3>
+                
+                <div class="dashboard" style="margin-bottom: 30px;">
+                    <div class="card">
+                        <h3 id="relTotalProcessado">0</h3>
+                        <p>Total de Pacotes Processados</p>
+                    </div>
+                    <div class="card">
+                        <h3 id="relLucroTotal">R$ 0,00</h3>
+                        <p>Lucro Total Acumulado</p>
+                    </div>
+                </div>
+
+                <h4>📜 Histórico de Movimentações</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Tipo</th>
+                            <th>Código</th>
+                            <th>Cliente</th>
+                            <th>Fornecedor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaHistorico">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #999;">Nenhuma movimentação registrada</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ABA: CONFIGURAÇÕES (ADMIN) -->
+            <div id="aba-config" class="tab-content">
+                <h3>⚙️ Configurações do Sistema</h3>
+                
+                <div class="alert alert-error">
+                    <strong>⚠️ Área Administrativa</strong><br>
+                    Apenas administradores podem acessar esta área.
+                </div>
+
+                <h4>🗺️ Configuração de Prateleiras</h4>
+                <p>Configure a estrutura do seu depósito:</p>
+                
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Corredores (A-Z)</label>
+                        <input type="number" id="numCorredores" value="5" min="1" max="26">
+                    </div>
+                    <div class="input-group">
+                        <label>Prateleiras por Corredor</label>
+                        <input type="number" id="numPrateleiras" value="10" min="1" max="99">
+                    </div>
+                    <div class="input-group">
+                        <label>Andares por Prateleira</label>
+                        <input type="number" id="numAndares" value="5" min="1" max="9">
+                    </div>
+                    <div class="input-group">
+                        <label>Nichos por Andar</label>
+                        <input type="number" id="numNichos" value="3" min="1" max="9">
+                    </div>
+                </div>
+
+                <button class="btn" onclick="salvarConfiguracao()">💾 Salvar Configuração</button>
+
+                <h4 style="margin-top: 30px;">👥 Gerenciar Usuários</h4>
+                <p style="color: #666; margin-bottom: 20px;">Em desenvolvimento - Próxima versão</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // VARIÁVEIS GLOBAIS
+        // ==========================================
+        let usuarioLogado = null;
+        let tipoUsuario = null;
+        let pacotesEstoque = [];
+        let historico = [];
+        let configuracao = {
+            corredores: 5,
+            prateleiras: 10,
+            andares: 5,
+            nichos: 3
+        };
+
+        // Carregar dados do localStorage ao iniciar
+        window.onload = function() {
+            carregarDados();
+        };
+
+        // ==========================================
+        // SISTEMA DE LOGIN
+        // ==========================================
+        function fazerLogin() {
+            const usuario = document.getElementById('loginUsuario').value;
+            const senha = document.getElementById('loginSenha').value;
+
+            // Validação simples (em produção, usar Supabase Auth)
+            if (usuario === 'admin' && senha === 'admin123') {
+                usuarioLogado = 'Administrador';
+                tipoUsuario = 'admin';
+                mostrarSistema();
+            } else if (usuario === 'operador' && senha === 'oper123') {
+                usuarioLogado = 'Operador';
+                tipoUsuario = 'operador';
+                mostrarSistema();
+            } else {
+                alert('❌ Usuário ou senha incorretos!');
+            }
+        }
+
+        function mostrarSistema() {
+            document.getElementById('telaLogin').classList.add('hidden');
+            document.getElementById('telaSistema').classList.remove('hidden');
+            document.getElementById('nomeUsuario').textContent = usuarioLogado;
+            
+            const badge = document.getElementById('tipoUsuario');
+            if (tipoUsuario === 'admin') {
+                badge.textContent = 'ADMIN';
+                badge.className = 'badge badge-admin';
+            } else {
+                badge.textContent = 'OPERADOR';
+                badge.className = 'badge badge-operador';
+                document.getElementById('tabConfig').classList.add('hidden');
+            }
+
+            atualizarDashboard();
+            atualizarEstoque();
+            atualizarRelatorio();
+        }
+
+        function fazerLogout() {
+            if (confirm('Deseja realmente sair?')) {
+                document.getElementById('telaLogin').classList.remove('hidden');
+                document.getElementById('telaSistema').classList.add('hidden');
+                document.getElementById('loginUsuario').value = '';
+                document.getElementById('loginSenha').value = '';
+                usuarioLogado = null;
+                tipoUsuario = null;
+            }
+        }
+
+        // ==========================================
+        // SISTEMA DE ABAS
+        // ==========================================
+        function abrirAba(nomeAba) {
+            // Esconder todas as abas
+            const abas = document.querySelectorAll('.tab-content');
+            abas.forEach(aba => aba.classList.remove('active'));
+
+            // Desativar todos os botões
+            const botoes = document.querySelectorAll('.tab-btn');
+            botoes.forEach(btn => btn.classList.remove('active'));
+
+            // Ativar aba selecionada
+            document.getElementById('aba-' + nomeAba).classList.add('active');
+            event.target.classList.add('active');
+
+            // Atualizar dados se necessário
+            if (nomeAba === 'estoque') {
+                atualizarEstoque();
+            } else if (nomeAba === 'relatorio') {
+                atualizarRelatorio();
+            }
+        }
+
+        // ==========================================
+        // CÂMERA E LEITURA DE CÓDIGO
+        // ==========================================
+        let stream = null;
+
+        function abrirCamera() {
+            const videoContainer = document.getElementById('video-container');
+            const video = document.getElementById('video');
+            
+            videoContainer.classList.remove('hidden');
+
+            // Solicitar acesso à câmera
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(function(s) {
+                    stream = s;
+                    video.srcObject = stream;
+                    alert('📷 Câmera ativada! Posicione o código de barras/QR Code.\n\n⚠️ NOTA: Para leitura automática, você precisará integrar uma biblioteca como QuaggaJS ou ZXing. Por enquanto, digite o código manualmente.');
+                })
+                .catch(function(err) {
+                    alert('❌ Erro ao acessar câmera: ' + err.message);
+                    videoContainer.classList.add('hidden');
+                });
+        }
+
+        function fecharCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            document.getElementById('video-container').classList.add('hidden');
+        }
+
+        function abrirCameraSaida() {
+            abrirCamera();
+        }
+
+        // ==========================================
+        // ENTRADA DE PACOTES
+        // ==========================================
+        function registrarEntrada() {
+            const codigo = document.getElementById('codigoPacote').value.trim();
+            const fornecedor = document.getElementById('fornecedor').value.trim();
+            const cliente = document.getElementById('cliente').value.trim();
+            const telefone = document.getElementById('telefoneCliente').value.trim();
+            const obs = document.getElementById('observacoes').value.trim();
+
+            // Validação
+            if (!codigo || !fornecedor || !cliente) {
+                alert('❌ Preencha todos os campos obrigatórios (*)');
+                return;
+            }
+
+            // Verificar se código já existe
+            if (pacotesEstoque.find(p => p.codigo === codigo)) {
+                alert('❌ Este código já está registrado no estoque!');
+                return;
+            }
+
+            // Gerar localização sugerida
+            const localizacao = gerarLocalizacao();
+
+            // Criar pacote
+            const pacote = {
+                codigo: codigo,
+                fornecedor: fornecedor,
+                cliente: cliente,
+                telefone: telefone,
+                observacoes: obs,
+                localizacao: localizacao,
+                dataEntrada: new Date().toISOString(),
+                status: 'estoque'
+            };
+
+            // Adicionar ao estoque
+            pacotesEstoque.push(pacote);
+
+            // Adicionar ao histórico
+            historico.push({
+                tipo: 'ENTRADA',
+                data: new Date().toISOString(),
+                pacote: pacote
+            });
+
+            // Salvar dados
+            salvarDados();
+
+            // Limpar formulário
+            document.getElementById('codigoPacote').value = '';
+            document.getElementById('fornecedor').value = '';
+            document.getElementById('cliente').value = '';
+            document.getElementById('telefoneCliente').value = '';
+            document.getElementById('observacoes').value = '';
+
+            // Atualizar interface
+            atualizarDashboard();
+            alert('✅ Pacote registrado com sucesso!\n📍 Localização: ' + localizacao);
+
+            // Sugerir nova localização
+            document.getElementById('localizacaoSugerida').textContent = gerarLocalizacao();
+        }
+
+        function gerarLocalizacao() {
+            const corredor = String.fromCharCode(65 + Math.floor(Math.random() * configuracao.corredores));
+            const prateleira = String(Math.floor(Math.random() * configuracao.prateleiras) + 1).padStart(2, '0');
+            const andar = Math.floor(Math.random() * configuracao.andares) + 1;
+            const nicho = Math.floor(Math.random() * configuracao.nichos) + 1;
+            
+            return corredor + prateleira + andar + nicho;
+        }
+
+        // Atualizar sugestão ao carregar
+        setTimeout(() => {
+            if (document.getElementById('localizacaoSugerida')) {
+                document.getElementById('localizacaoSugerida').textContent = gerarLocalizacao();
+            }
+        }, 500);
+
+        // ==========================================
+        // SAÍDA DE PACOTES
+        // ==========================================
+        function buscarPacote() {
+            const codigo = document.getElementById('codigoPacoteSaida').value.trim();
+            
+            if (!codigo) {
+                alert('❌ Digite o código do pacote');
+                return;
+            }
+
+            const pacote = pacotesEstoque.find(p => p.codigo === codigo);
+
+            if (!pacote) {
+                alert('❌ Pacote não encontrado no estoque!');
+                document.getElementById('infoPacote').classList.add('hidden');
+                document.getElementById('btnConfirmarSaida').classList.add('hidden');
+                return;
+            }
+
+            // Mostrar informações
+            document.getElementById('infoCliente').textContent = pacote.cliente;
+            document.getElementById('infoFornecedor').textContent = pacote.fornecedor;
+            document.getElementById('infoLocalizacao').textContent = pacote.localizacao;
+            document.getElementById('infoDataEntrada').textContent = new Date(pacote.dataEntrada).toLocaleString('pt-BR');
+            
+            document.getElementById('infoPacote').classList.remove('hidden');
+            document.getElementById('btnConfirmarSaida').classList.remove('hidden');
+        }
+
+        function registrarSaida() {
+            const codigo = document.getElementById('codigoPacoteSaida').value.trim();
+            const index = pacotesEstoque.findIndex(p => p.codigo === codigo);
+
+            if (index === -1) {
+                alert('❌ Erro ao processar saída');
+                return;
+            }
+
+            const pacote = pacotesEstoque[index];
+
+            // Adicionar ao histórico
+            historico.push({
+                tipo: 'SAÍDA',
+                data: new Date().toISOString(),
+                pacote: pacote
+            });
+
+            // Remover do estoque
+            pacotesEstoque.splice(index, 1);
+
+            // Salvar dados
+            salvarDados();
+
+            // Limpar formulário
+            document.getElementById('codigoPacoteSaida').value = '';
+            document.getElementById('infoPacote').classList.add('hidden');
+            document.getElementById('btnConfirmarSaida').classList.add('hidden');
+
+            // Atualizar interface
+            atualizarDashboard();
+            atualizarEstoque();
+
+            alert('✅ Saída registrada com sucesso!\n💰 Lucro: R$ 1,50');
+        }
+
+        // ==========================================
+        // ESTOQUE
+        // ==========================================
+        function atualizarEstoque() {
+            const tbody = document.getElementById('tabelaEstoque');
+            
+            if (pacotesEstoque.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">Nenhum pacote no estoque</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            pacotesEstoque.forEach(pacote => {
+                const dataEntrada = new Date(pacote.dataEntrada);
+                const hoje = new Date();
+                const diasNoCD = Math.floor((hoje - dataEntrada) / (1000 * 60 * 60 * 24));
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${pacote.codigo}</strong></td>
+                    <td>${pacote.cliente}</td>
+                    <td>${pacote.fornecedor}</td>
+                    <td><strong>${pacote.localizacao}</strong></td>
+                    <td>${dataEntrada.toLocaleDateString('pt-BR')}</td>
+                    <td>${diasNoCD} dia(s)</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filtrarEstoque() {
+            const busca = document.getElementById('buscaEstoque').value.toLowerCase();
+            const linhas = document.querySelectorAll('#tabelaEstoque tr');
+
+            linhas.forEach(linha => {
+                const texto = linha.textContent.toLowerCase();
+                if (texto.includes(busca)) {
+                    linha.style.display = '';
+                } else {
+                    linha.style.display = 'none';
+                }
+            });
+        }
+
+        // ==========================================
+        // DASHBOARD E RELATÓRIOS
+        // ==========================================
+        function atualizarDashboard() {
+            const hoje = new Date().toDateString();
+            const entradasHoje = historico.filter(h => h.tipo === 'ENTRADA' && new Date(h.data).toDateString() === hoje).length;
+            const saidasHoje = historico.filter(h => h.tipo === 'SAÍDA' && new Date(h.data).toDateString() === hoje).length;
+            const totalSaidas = historico.filter(h => h.tipo === 'SAÍDA').length;
+            const lucroTotal = totalSaidas * 1.50;
+
+            document.getElementById('totalPacotes').textContent = pacotesEstoque.length;
+            document.getElementById('totalLucro').textContent = 'R$ ' + lucroTotal.toFixed(2);
+            document.getElementById('totalEntradas').textContent = entradasHoje;
+            document.getElementById('totalSaidas').textContent = saidasHoje;
+        }
+
+        function atualizarRelatorio() {
+            const totalSaidas = historico.filter(h => h.tipo === 'SAÍDA').length;
+            const lucroTotal = totalSaidas * 1.50;
+            const totalProcessado = historico.length;
+
+            document.getElementById('relTotalProcessado').textContent = totalProcessado;
+            document.getElementById('relLucroTotal').textContent = 'R$ ' + lucroTotal.toFixed(2);
+
+            // Atualizar tabela de histórico
+            const tbody = document.getElementById('tabelaHistorico');
+            
+            if (historico.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">Nenhuma movimentação registrada</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            // Mostrar últimas 50 movimentações
+            const ultimasMovimentacoes = historico.slice(-50).reverse();
+            
+            ultimasMovimentacoes.forEach(mov => {
+                const data = new Date(mov.data);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${data.toLocaleString('pt-BR')}</td>
+                    <td><strong style="color: ${mov.tipo === 'ENTRADA' ? '#28a745' : '#dc3545'}">${mov.tipo}</strong></td>
+                    <td>${mov.pacote.codigo}</td>
+                    <td>${mov.pacote.cliente}</td>
+                    <td>${mov.pacote.fornecedor}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ==========================================
+        // CONFIGURAÇÕES
+        // ==========================================
+        function salvarConfiguracao() {
+            if (tipoUsuario !== 'admin') {
+                alert('❌ Apenas administradores podem alterar configurações');
+                return;
+            }
+
+            configuracao.corredores = parseInt(document.getElementById('numCorredores').value);
+            configuracao.prateleiras = parseInt(document.getElementById('numPrateleiras').value);
+            configuracao.andares = parseInt(document.getElementById('numAndares').value);
+            configuracao.nichos = parseInt(document.getElementById('numNichos').value);
+
+            salvarDados();
+            alert('✅ Configuração salva com sucesso!');
+        }
+
+        // ==========================================
+        // PERSISTÊNCIA DE DADOS (LocalStorage)
+        // ==========================================
+        function salvarDados() {
+            localStorage.setItem('pacotesEstoque', JSON.stringify(pacotesEstoque));
+            localStorage.setItem('historico', JSON.stringify(historico));
+            localStorage.setItem('configuracao', JSON.stringify(configuracao));
+        }
+
+        function carregarDados() {
+            const estoque = localStorage.getItem('pacotesEstoque');
+            const hist = localStorage.getItem('historico');
+            const config = localStorage.getItem('configuracao');
+
+            if (estoque) pacotesEstoque = JSON.parse(estoque);
+            if (hist) historico = JSON.parse(hist);
+            if (config) {
+                configuracao = JSON.parse(config);
+                document.getElementById('numCorredores').value = configuracao.corredores;
+                document.getElementById('numPrateleiras').value = configuracao.prateleiras;
+                document.getElementById('numAndares').value = configuracao.andares;
+                document.getElementById('numNichos').value = configuracao.nichos;
+            }
+        }
+    </script>
+</body>
+</html>
