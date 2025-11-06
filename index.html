@@ -478,29 +478,29 @@
             </div>
 
             <!-- ABA: SAÍDA DE PACOTES -->
-            <div id="aba-saida" class="tab-content">
-                <h3>📤 Registrar Saída de Pacote</h3>
-                
-                <div style="margin: 20px 0;">
-                    <button class="btn btn-success" onclick="abrirCamera('saida')">📷 Escanear Código</button>
-                </div>
+<div id="aba-saida" class="tab-content">
+    <h3>📤 Registrar Saída de Pacote</h3>
+    
+    <div style="margin: 20px 0;">
+        <button class="btn btn-success" onclick="abrirCamera('saida')">📷 Escanear Código</button>
+    </div>
 
-                <div class="input-group">
-                    <label>Código do Pacote *</label>
-                    <input type="text" id="codigoPacoteSaida" placeholder="Escaneie ou digite">
-                </div>
+    <div class="input-group">
+        <label>Código do Pacote *</label>
+        <input type="text" id="codigoPacoteSaida" placeholder="Escaneie ou digite">
+    </div>
 
-                <div id="infoPacote" class="hidden" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <h4>Informações do Pacote:</h4>
-                    <p><strong>Cliente:</strong> <span id="infoCliente"></span></p>
-                    <p><strong>Fornecedor:</strong> <span id="infoFornecedor"></span></p>
-                    <p><strong>Localização:</strong> <span id="infoLocalizacao"></span></p>
-                    <p><strong>Data Entrada:</strong> <span id="infoDataEntrada"></span></p>
-                </div>
+    <div id="infoPacote" class="hidden" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h4>Informações do Pacote:</h4>
+        <p><strong>Cliente:</strong> <span id="infoCliente"></span></p>
+        <p><strong>Fornecedor:</strong> <span id="infoFornecedor"></span></p>
+        <p><strong>Localização:</strong> <span id="infoLocalizacao"></span></p>
+        <p><strong>Data Entrada:</strong> <span id="infoDataEntrada"></span></p>
+    </div>
 
-                <button class="btn" onclick="buscarPacote()">🔍 Buscar Pacote</button>
-                <button class="btn btn-success hidden" id="btnConfirmarSaida" onclick="registrarSaida()">✅ Confirmar Saída</button>
-            </div>
+    <button class="btn" onclick="buscarPacote()">🔍 Buscar Pacote</button>
+    <button class="btn btn-success hidden" id="btnConfirmarSaida" onclick="registrarSaida()">✅ Confirmar Saída</button>
+</div>
 
             <!-- ABA: ESTOQUE -->
             <div id="aba-estoque" class="tab-content">
