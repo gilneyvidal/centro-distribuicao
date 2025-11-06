@@ -284,6 +284,12 @@
             display: inline-block;
         }
 
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -454,6 +460,8 @@
                     <input type="text" id="buscaEstoque" placeholder="🔍 Buscar por código, cliente ou fornecedor..." onkeyup="filtrarEstoque()">
                 </div>
 
+                <div id="loadingEstoque" class="loading hidden">Carregando estoque...</div>
+
                 <table>
                     <thead>
                         <tr>
@@ -489,6 +497,7 @@
                 </div>
 
                 <h4>📜 Histórico de Movimentações</h4>
+                <div id="loadingHistorico" class="loading hidden">Carregando histórico...</div>
                 <table>
                     <thead>
                         <tr>
@@ -546,14 +555,24 @@
         </div>
     </div>
 
+    <!-- BIBLIOTECA SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
+        // ==========================================
+        // CONFIGURAÇÃO SUPABASE
+        // ==========================================
+        const SUPABASE_URL = 'https://nneopnseeuhdtjqnqlcc.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZW9wbnNlZXVoZHRqcW5xbGNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0NDE4NzYsImV4cCI6MjA3ODAxNzg3Nn0.6nQq_A8rUfP-umbfy0w3GcZfCrSGGK62q0MMsSi6jUg';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        console.log('✅ Conectado ao Supabase');
+
         // ==========================================
         // VARIÁVEIS GLOBAIS
         // ==========================================
         let usuarioLogado = null;
         let tipoUsuario = null;
-        let pacotesEstoque = [];
-        let historico = [];
         let configuracao = {
             corredores: 5,
             prateleiras: 10,
@@ -561,29 +580,48 @@
             nichos: 3
         };
 
-        // Carregar dados do localStorage ao iniciar
-        window.onload = function() {
-            carregarDados();
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        window.onload = async function() {
+            await carregarConfiguracao();
+            console.log('Sistema iniciado');
         };
 
         // ==========================================
         // SISTEMA DE LOGIN
         // ==========================================
-        function fazerLogin() {
-            const usuario = document.getElementById('loginUsuario').value;
-            const senha = document.getElementById('loginSenha').value;
+        async function fazerLogin() {
+            const usuario = document.getElementById('loginUsuario').value.trim();
+            const senha = document.getElementById('loginSenha').value.trim();
 
-            // Validação simples (em produção, usar Supabase Auth)
-            if (usuario === 'admin' && senha === 'admin123') {
-                usuarioLogado = 'Administrador';
-                tipoUsuario = 'admin';
+            if (!usuario || !senha) {
+                alert('❌ Preencha usuário e senha!');
+                return;
+            }
+
+            try {
+                // Buscar usuário no banco
+                const { data, error } = await supabase
+                    .from('usuarios')
+                    .select('*')
+                    .eq('usuario', usuario)
+                    .eq('senha', senha)
+                    .eq('ativo', true)
+                    .single();
+
+                if (error || !data) {
+                    alert('❌ Usuário ou senha incorretos!');
+                    return;
+                }
+
+                usuarioLogado = data.nome;
+                tipoUsuario = data.tipo;
                 mostrarSistema();
-            } else if (usuario === 'operador' && senha === 'oper123') {
-                usuarioLogado = 'Operador';
-                tipoUsuario = 'operador';
-                mostrarSistema();
-            } else {
-                alert('❌ Usuário ou senha incorretos!');
+
+            } catch (err) {
+                console.error('Erro no login:', err);
+                alert('❌ Erro ao fazer login. Tente novamente.');
             }
         }
 
@@ -595,28 +633,17 @@
             const badge = document.getElementById('tipoUsuario');
             
             if (tipoUsuario === 'admin') {
-                // ADMIN: Acesso total
                 badge.textContent = 'ADMIN';
                 badge.className = 'badge badge-admin';
-                
-                // Mostrar dashboard admin (com lucro)
                 document.getElementById('dashboardAdmin').classList.remove('hidden');
                 document.getElementById('dashboardOperador').classList.add('hidden');
-                
-                // Mostrar abas de relatório e configurações
                 document.getElementById('tabRelatorio').classList.remove('hidden');
                 document.getElementById('tabConfig').classList.remove('hidden');
-                
             } else {
-                // OPERADOR: Acesso limitado
                 badge.textContent = 'OPERADOR';
                 badge.className = 'badge badge-operador';
-                
-                // Mostrar dashboard operador (sem lucro)
                 document.getElementById('dashboardOperador').classList.remove('hidden');
                 document.getElementById('dashboardAdmin').classList.add('hidden');
-                
-                // Esconder abas de relatório e configurações
                 document.getElementById('tabRelatorio').classList.add('hidden');
                 document.getElementById('tabConfig').classList.add('hidden');
             }
@@ -643,25 +670,20 @@
         // SISTEMA DE ABAS
         // ==========================================
         function abrirAba(nomeAba) {
-            // Verificar permissões
             if (tipoUsuario === 'operador' && (nomeAba === 'relatorio' || nomeAba === 'config')) {
                 alert('❌ Você não tem permissão para acessar esta área!');
                 return;
             }
 
-            // Esconder todas as abas
             const abas = document.querySelectorAll('.tab-content');
             abas.forEach(aba => aba.classList.remove('active'));
 
-            // Desativar todos os botões
             const botoes = document.querySelectorAll('.tab-btn');
             botoes.forEach(btn => btn.classList.remove('active'));
 
-            // Ativar aba selecionada
             document.getElementById('aba-' + nomeAba).classList.add('active');
             event.target.classList.add('active');
 
-            // Atualizar dados se necessário
             if (nomeAba === 'estoque') {
                 atualizarEstoque();
             } else if (nomeAba === 'relatorio' && tipoUsuario === 'admin') {
@@ -670,7 +692,7 @@
         }
 
         // ==========================================
-        // CÂMERA E LEITURA DE CÓDIGO
+        // CÂMERA
         // ==========================================
         let stream = null;
 
@@ -680,7 +702,6 @@
             
             videoContainer.classList.remove('hidden');
 
-            // Solicitar acesso à câmera
             navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
                 .then(function(s) {
                     stream = s;
@@ -708,66 +729,79 @@
         // ==========================================
         // ENTRADA DE PACOTES
         // ==========================================
-        function registrarEntrada() {
+        async function registrarEntrada() {
             const codigo = document.getElementById('codigoPacote').value.trim();
             const fornecedor = document.getElementById('fornecedor').value.trim();
             const cliente = document.getElementById('cliente').value.trim();
             const telefone = document.getElementById('telefoneCliente').value.trim();
             const obs = document.getElementById('observacoes').value.trim();
 
-            // Validação
             if (!codigo || !fornecedor || !cliente) {
                 alert('❌ Preencha todos os campos obrigatórios (*)');
                 return;
             }
 
-            // Verificar se código já existe
-            if (pacotesEstoque.find(p => p.codigo === codigo)) {
-                alert('❌ Este código já está registrado no estoque!');
-                return;
+            try {
+                // Verificar se código já existe
+                const { data: existente } = await supabase
+                    .from('pacotes')
+                    .select('codigo')
+                    .eq('codigo', codigo)
+                    .eq('status', 'estoque')
+                    .single();
+
+                if (existente) {
+                    alert('❌ Este código já está registrado no estoque!');
+                    return;
+                }
+
+                const localizacao = gerarLocalizacao();
+
+                // Inserir pacote
+                const { data: pacote, error: erroPacote } = await supabase
+                    .from('pacotes')
+                    .insert([{
+                        codigo: codigo,
+                        fornecedor: fornecedor,
+                        cliente: cliente,
+                        telefone: telefone,
+                        observacoes: obs,
+                        localizacao: localizacao,
+                        status: 'estoque'
+                    }])
+                    .select()
+                    .single();
+
+                if (erroPacote) throw erroPacote;
+
+                // Registrar no histórico
+                await supabase
+                    .from('historico')
+                    .insert([{
+                        tipo: 'ENTRADA',
+                        pacote_id: pacote.id,
+                        codigo_pacote: codigo,
+                        fornecedor: fornecedor,
+                        cliente: cliente,
+                        localizacao: localizacao,
+                        usuario: usuarioLogado
+                    }]);
+
+                // Limpar formulário
+                document.getElementById('codigoPacote').value = '';
+                document.getElementById('fornecedor').value = '';
+                document.getElementById('cliente').value = '';
+                document.getElementById('telefoneCliente').value = '';
+                document.getElementById('observacoes').value = '';
+
+                atualizarDashboard();
+                alert('✅ Pacote registrado com sucesso!\n📍 Localização: ' + localizacao);
+                document.getElementById('localizacaoSugerida').textContent = gerarLocalizacao();
+
+            } catch (err) {
+                console.error('Erro ao registrar entrada:', err);
+                alert('❌ Erro ao registrar pacote. Tente novamente.');
             }
-
-            // Gerar localização sugerida
-            const localizacao = gerarLocalizacao();
-
-            // Criar pacote
-            const pacote = {
-                codigo: codigo,
-                fornecedor: fornecedor,
-                cliente: cliente,
-                telefone: telefone,
-                observacoes: obs,
-                localizacao: localizacao,
-                dataEntrada: new Date().toISOString(),
-                status: 'estoque'
-            };
-
-            // Adicionar ao estoque
-            pacotesEstoque.push(pacote);
-
-            // Adicionar ao histórico
-            historico.push({
-                tipo: 'ENTRADA',
-                data: new Date().toISOString(),
-                pacote: pacote
-            });
-
-            // Salvar dados
-            salvarDados();
-
-            // Limpar formulário
-            document.getElementById('codigoPacote').value = '';
-            document.getElementById('fornecedor').value = '';
-            document.getElementById('cliente').value = '';
-            document.getElementById('telefoneCliente').value = '';
-            document.getElementById('observacoes').value = '';
-
-            // Atualizar interface
-            atualizarDashboard();
-            alert('✅ Pacote registrado com sucesso!\n📍 Localização: ' + localizacao);
-
-            // Sugerir nova localização
-            document.getElementById('localizacaoSugerida').textContent = gerarLocalizacao();
         }
 
         function gerarLocalizacao() {
@@ -779,7 +813,6 @@
             return corredor + prateleira + andar + nicho;
         }
 
-        // Atualizar sugestão ao carregar
         setTimeout(() => {
             if (document.getElementById('localizacaoSugerida')) {
                 document.getElementById('localizacaoSugerida').textContent = gerarLocalizacao();
@@ -789,7 +822,7 @@
         // ==========================================
         // SAÍDA DE PACOTES
         // ==========================================
-        function buscarPacote() {
+        async function buscarPacote() {
             const codigo = document.getElementById('codigoPacoteSaida').value.trim();
             
             if (!codigo) {
@@ -797,94 +830,137 @@
                 return;
             }
 
-            const pacote = pacotesEstoque.find(p => p.codigo === codigo);
+            try {
+                const { data: pacote, error } = await supabase
+                    .from('pacotes')
+                    .select('*')
+                    .eq('codigo', codigo)
+                    .eq('status', 'estoque')
+                    .single();
 
-            if (!pacote) {
-                alert('❌ Pacote não encontrado no estoque!');
-                document.getElementById('infoPacote').classList.add('hidden');
-                document.getElementById('btnConfirmarSaida').classList.add('hidden');
-                return;
+                if (error || !pacote) {
+                    alert('❌ Pacote não encontrado no estoque!');
+                    document.getElementById('infoPacote').classList.add('hidden');
+                    document.getElementById('btnConfirmarSaida').classList.add('hidden');
+                    return;
+                }
+
+                document.getElementById('infoCliente').textContent = pacote.cliente;
+                document.getElementById('infoFornecedor').textContent = pacote.fornecedor;
+                document.getElementById('infoLocalizacao').textContent = pacote.localizacao;
+                document.getElementById('infoDataEntrada').textContent = new Date(pacote.data_entrada).toLocaleString('pt-BR');
+                
+                document.getElementById('infoPacote').classList.remove('hidden');
+                document.getElementById('btnConfirmarSaida').classList.remove('hidden');
+
+            } catch (err) {
+                console.error('Erro ao buscar pacote:', err);
+                alert('❌ Erro ao buscar pacote. Tente novamente.');
             }
-
-            // Mostrar informações
-            document.getElementById('infoCliente').textContent = pacote.cliente;
-            document.getElementById('infoFornecedor').textContent = pacote.fornecedor;
-            document.getElementById('infoLocalizacao').textContent = pacote.localizacao;
-            document.getElementById('infoDataEntrada').textContent = new Date(pacote.dataEntrada).toLocaleString('pt-BR');
-            
-            document.getElementById('infoPacote').classList.remove('hidden');
-            document.getElementById('btnConfirmarSaida').classList.remove('hidden');
         }
 
-        function registrarSaida() {
+        async function registrarSaida() {
             const codigo = document.getElementById('codigoPacoteSaida').value.trim();
-            const index = pacotesEstoque.findIndex(p => p.codigo === codigo);
 
-            if (index === -1) {
-                alert('❌ Erro ao processar saída');
-                return;
-            }
+            try {
+                const { data: pacote } = await supabase
+                    .from('pacotes')
+                    .select('*')
+                    .eq('codigo', codigo)
+                    .eq('status', 'estoque')
+                    .single();
 
-            const pacote = pacotesEstoque[index];
+                if (!pacote) {
+                    alert('❌ Erro ao processar saída');
+                    return;
+                }
 
-            // Adicionar ao histórico
-            historico.push({
-                tipo: 'SAÍDA',
-                data: new Date().toISOString(),
-                pacote: pacote
-            });
+                // Atualizar status do pacote
+                await supabase
+                    .from('pacotes')
+                    .update({ status: 'entregue', data_saida: new Date().toISOString() })
+                    .eq('id', pacote.id);
 
-            // Remover do estoque
-            pacotesEstoque.splice(index, 1);
+                // Registrar no histórico
+                await supabase
+                    .from('historico')
+                    .insert([{
+                        tipo: 'SAÍDA',
+                        pacote_id: pacote.id,
+                        codigo_pacote: pacote.codigo,
+                        fornecedor: pacote.fornecedor,
+                        cliente: pacote.cliente,
+                        localizacao: pacote.localizacao,
+                        usuario: usuarioLogado
+                    }]);
 
-            // Salvar dados
-            salvarDados();
+                document.getElementById('codigoPacoteSaida').value = '';
+                document.getElementById('infoPacote').classList.add('hidden');
+                document.getElementById('btnConfirmarSaida').classList.add('hidden');
 
-            // Limpar formulário
-            document.getElementById('codigoPacoteSaida').value = '';
-            document.getElementById('infoPacote').classList.add('hidden');
-            document.getElementById('btnConfirmarSaida').classList.add('hidden');
+                atualizarDashboard();
+                atualizarEstoque();
 
-            // Atualizar interface
-            atualizarDashboard();
-            atualizarEstoque();
+                if (tipoUsuario === 'operador') {
+                    alert('✅ Saída registrada com sucesso!');
+                } else {
+                    alert('✅ Saída registrada com sucesso!\n💰 Lucro: R$ 1,50');
+                }
 
-            // Mensagem diferente para operador (sem mencionar lucro)
-            if (tipoUsuario === 'operador') {
-                alert('✅ Saída registrada com sucesso!');
-            } else {
-                alert('✅ Saída registrada com sucesso!\n💰 Lucro: R$ 1,50');
+            } catch (err) {
+                console.error('Erro ao registrar saída:', err);
+                alert('❌ Erro ao registrar saída. Tente novamente.');
             }
         }
 
         // ==========================================
         // ESTOQUE
         // ==========================================
-        function atualizarEstoque() {
+        async function atualizarEstoque() {
             const tbody = document.getElementById('tabelaEstoque');
+            const loading = document.getElementById('loadingEstoque');
             
-            if (pacotesEstoque.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">Nenhum pacote no estoque</td></tr>';
-                return;
+            loading.classList.remove('hidden');
+
+            try {
+                const { data: pacotes, error } = await supabase
+                    .from('pacotes')
+                    .select('*')
+                    .eq('status', 'estoque')
+                    .order('data_entrada', { ascending: false });
+
+                loading.classList.add('hidden');
+
+                if (error) throw error;
+
+                if (!pacotes || pacotes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">Nenhum pacote no estoque</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                pacotes.forEach(pacote => {
+                    const dataEntrada = new Date(pacote.data_entrada);
+                    const hoje = new Date();
+                    const diasNoCD = Math.floor((hoje - dataEntrada) / (1000 * 60 * 60 * 24));
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${pacote.codigo}</strong></td>
+                        <td>${pacote.cliente}</td>
+                        <td>${pacote.fornecedor}</td>
+                        <td><strong>${pacote.localizacao}</strong></td>
+                        <td>${dataEntrada.toLocaleDateString('pt-BR')}</td>
+                        <td>${diasNoCD} dia(s)</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                loading.classList.add('hidden');
+                console.error('Erro ao carregar estoque:', err);
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #dc3545;">Erro ao carregar estoque</td></tr>';
             }
-
-            tbody.innerHTML = '';
-            pacotesEstoque.forEach(pacote => {
-                const dataEntrada = new Date(pacote.dataEntrada);
-                const hoje = new Date();
-                const diasNoCD = Math.floor((hoje - dataEntrada) / (1000 * 60 * 60 * 24));
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${pacote.codigo}</strong></td>
-                    <td>${pacote.cliente}</td>
-                    <td>${pacote.fornecedor}</td>
-                    <td><strong>${pacote.localizacao}</strong></td>
-                    <td>${dataEntrada.toLocaleDateString('pt-BR')}</td>
-                    <td>${diasNoCD} dia(s)</td>
-                `;
-                tbody.appendChild(tr);
-            });
         }
 
         function filtrarEstoque() {
@@ -904,104 +980,149 @@
         // ==========================================
         // DASHBOARD E RELATÓRIOS
         // ==========================================
-        function atualizarDashboard() {
-            const hoje = new Date().toDateString();
-            const entradasHoje = historico.filter(h => h.tipo === 'ENTRADA' && new Date(h.data).toDateString() === hoje).length;
-            const saidasHoje = historico.filter(h => h.tipo === 'SAÍDA' && new Date(h.data).toDateString() === hoje).length;
-            const totalSaidas = historico.filter(h => h.tipo === 'SAÍDA').length;
-            const lucroTotal = totalSaidas * 1.50;
+        async function atualizarDashboard() {
+            try {
+                // Contar pacotes em estoque
+                const { count: totalEstoque } = await supabase
+                    .from('pacotes')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'estoque');
 
-            if (tipoUsuario === 'admin') {
-                // Dashboard Admin (com lucro)
-                document.getElementById('totalPacotesAdmin').textContent = pacotesEstoque.length;
-                document.getElementById('totalLucro').textContent = 'R$ ' + lucroTotal.toFixed(2);
-                document.getElementById('totalEntradasAdmin').textContent = entradasHoje;
-                document.getElementById('totalSaidasAdmin').textContent = saidasHoje;
-            } else {
-                // Dashboard Operador (sem lucro)
-                document.getElementById('totalPacotes').textContent = pacotesEstoque.length;
-                document.getElementById('totalEntradas').textContent = entradasHoje;
-                document.getElementById('totalSaidas').textContent = saidasHoje;
+                // Buscar dados do relatório
+                const { data: relatorio } = await supabase
+                    .from('relatorio_lucros')
+                    .select('*')
+                    .single();
+
+                if (tipoUsuario === 'admin') {
+                    document.getElementById('totalPacotesAdmin').textContent = totalEstoque || 0;
+                    document.getElementById('totalLucro').textContent = 'R$ ' + (relatorio?.lucro_total || 0).toFixed(2);
+                    document.getElementById('totalEntradasAdmin').textContent = relatorio?.entradas_hoje || 0;
+                    document.getElementById('totalSaidasAdmin').textContent = relatorio?.saidas_hoje || 0;
+                } else {
+                    document.getElementById('totalPacotes').textContent = totalEstoque || 0;
+                    document.getElementById('totalEntradas').textContent = relatorio?.entradas_hoje || 0;
+                    document.getElementById('totalSaidas').textContent = relatorio?.saidas_hoje || 0;
+                }
+
+            } catch (err) {
+                console.error('Erro ao atualizar dashboard:', err);
             }
         }
 
-        function atualizarRelatorio() {
-            // Apenas admin pode ver relatórios
+        async function atualizarRelatorio() {
             if (tipoUsuario !== 'admin') return;
 
-            const totalSaidas = historico.filter(h => h.tipo === 'SAÍDA').length;
-            const lucroTotal = totalSaidas * 1.50;
-            const totalProcessado = historico.length;
+            const loading = document.getElementById('loadingHistorico');
+            loading.classList.remove('hidden');
 
-            document.getElementById('relTotalProcessado').textContent = totalProcessado;
-            document.getElementById('relLucroTotal').textContent = 'R$ ' + lucroTotal.toFixed(2);
+            try {
+                // Buscar dados do relatório
+                const { data: relatorio } = await supabase
+                    .from('relatorio_lucros')
+                    .select('*')
+                    .single();
 
-            // Atualizar tabela de histórico
-            const tbody = document.getElementById('tabelaHistorico');
-            
-            if (historico.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">Nenhuma movimentação registrada</td></tr>';
-                return;
+                document.getElementById('relTotalProcessado').textContent = 
+                    (relatorio?.total_entradas || 0) + (relatorio?.total_saidas || 0);
+                document.getElementById('relLucroTotal').textContent = 'R$ ' + (relatorio?.lucro_total || 0).toFixed(2);
+
+                // Buscar histórico
+                const { data: historico, error } = await supabase
+                    .from('historico')
+                    .select('*')
+                    .order('data_movimentacao', { ascending: false })
+                    .limit(50);
+
+                loading.classList.add('hidden');
+
+                if (error) throw error;
+
+                const tbody = document.getElementById('tabelaHistorico');
+
+                if (!historico || historico.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">Nenhuma movimentação registrada</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                historico.forEach(mov => {
+                    const data = new Date(mov.data_movimentacao);
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${data.toLocaleString('pt-BR')}</td>
+                        <td><strong style="color: ${mov.tipo === 'ENTRADA' ? '#28a745' : '#dc3545'}">${mov.tipo}</strong></td>
+                        <td>${mov.codigo_pacote}</td>
+                        <td>${mov.cliente}</td>
+                        <td>${mov.fornecedor}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                loading.classList.add('hidden');
+                console.error('Erro ao carregar relatório:', err);
             }
-
-            tbody.innerHTML = '';
-            // Mostrar últimas 50 movimentações
-            const ultimasMovimentacoes = historico.slice(-50).reverse();
-            
-            ultimasMovimentacoes.forEach(mov => {
-                const data = new Date(mov.data);
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${data.toLocaleString('pt-BR')}</td>
-                    <td><strong style="color: ${mov.tipo === 'ENTRADA' ? '#28a745' : '#dc3545'}">${mov.tipo}</strong></td>
-                    <td>${mov.pacote.codigo}</td>
-                    <td>${mov.pacote.cliente}</td>
-                    <td>${mov.pacote.fornecedor}</td>
-                `;
-                tbody.appendChild(tr);
-            });
         }
 
         // ==========================================
         // CONFIGURAÇÕES
         // ==========================================
-        function salvarConfiguracao() {
+        async function carregarConfiguracao() {
+            try {
+                const { data, error } = await supabase
+                    .from('configuracoes')
+                    .select('*')
+                    .single();
+
+                if (data) {
+                    configuracao = {
+                        corredores: data.corredores,
+                        prateleiras: data.prateleiras,
+                        andares: data.andares,
+                        nichos: data.nichos
+                    };
+
+                    document.getElementById('numCorredores').value = data.corredores;
+                    document.getElementById('numPrateleiras').value = data.prateleiras;
+                    document.getElementById('numAndares').value = data.andares;
+                    document.getElementById('numNichos').value = data.nichos;
+                }
+            } catch (err) {
+                console.error('Erro ao carregar configuração:', err);
+            }
+        }
+
+        async function salvarConfiguracao() {
             if (tipoUsuario !== 'admin') {
                 alert('❌ Apenas administradores podem alterar configurações');
                 return;
             }
 
-            configuracao.corredores = parseInt(document.getElementById('numCorredores').value);
-            configuracao.prateleiras = parseInt(document.getElementById('numPrateleiras').value);
-            configuracao.andares = parseInt(document.getElementById('numAndares').value);
-            configuracao.nichos = parseInt(document.getElementById('numNichos').value);
+            try {
+                configuracao.corredores = parseInt(document.getElementById('numCorredores').value);
+                configuracao.prateleiras = parseInt(document.getElementById('numPrateleiras').value);
+                configuracao.andares = parseInt(document.getElementById('numAndares').value);
+                configuracao.nichos = parseInt(document.getElementById('numNichos').value);
 
-            salvarDados();
-            alert('✅ Configuração salva com sucesso!');
-        }
+                const { error } = await supabase
+                    .from('configuracoes')
+                    .update({
+                        corredores: configuracao.corredores,
+                        prateleiras: configuracao.prateleiras,
+                        andares: configuracao.andares,
+                        nichos: configuracao.nichos,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', (await supabase.from('configuracoes').select('id').single()).data.id);
 
-        // ==========================================
-        // PERSISTÊNCIA DE DADOS (LocalStorage)
-        // ==========================================
-        function salvarDados() {
-            localStorage.setItem('pacotesEstoque', JSON.stringify(pacotesEstoque));
-            localStorage.setItem('historico', JSON.stringify(historico));
-            localStorage.setItem('configuracao', JSON.stringify(configuracao));
-        }
+                if (error) throw error;
 
-        function carregarDados() {
-            const estoque = localStorage.getItem('pacotesEstoque');
-            const hist = localStorage.getItem('historico');
-            const config = localStorage.getItem('configuracao');
+                alert('✅ Configuração salva com sucesso!');
 
-            if (estoque) pacotesEstoque = JSON.parse(estoque);
-            if (hist) historico = JSON.parse(hist);
-            if (config) {
-                configuracao = JSON.parse(config);
-                document.getElementById('numCorredores').value = configuracao.corredores;
-                document.getElementById('numPrateleiras').value = configuracao.prateleiras;
-                document.getElementById('numAndares').value = configuracao.andares;
-                document.getElementById('numNichos').value = configuracao.nichos;
+            } catch (err) {
+                console.error('Erro ao salvar configuração:', err);
+                alert('❌ Erro ao salvar configuração. Tente novamente.');
             }
         }
     </script>
