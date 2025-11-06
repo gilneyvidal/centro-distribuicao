@@ -344,6 +344,67 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* ========== NOTIFICAÇÕES ========== */
+        .notify-btn-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .notify-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #dc3545;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 999px;
+            min-width: 20px;
+            text-align: center;
+            display: none;
+        }
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #eee;
+            margin-bottom: 12px;
+            background: #fff;
+        }
+        .alert-left {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .alert-title {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .alert-meta {
+            color: #555;
+            font-size: 14px;
+        }
+        .alert-chip {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .alert-chip-yellow {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .alert-chip-red {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
@@ -384,7 +445,7 @@
                 </div>
             </div>
 
-            <!-- DASHBOARD - APENAS PARA OPERADOR (SEM LUCRO) -->
+            <!-- DASHBOARD - OPERADOR -->
             <div class="dashboard" id="dashboardOperador">
                 <div class="card">
                     <h3 id="totalPacotes">0</h3>
@@ -400,7 +461,7 @@
                 </div>
             </div>
 
-            <!-- DASHBOARD - APENAS PARA ADMIN (COM LUCRO) -->
+            <!-- DASHBOARD - ADMIN -->
             <div class="dashboard hidden" id="dashboardAdmin">
                 <div class="card">
                     <h3 id="totalPacotesAdmin">0</h3>
@@ -422,11 +483,17 @@
 
             <!-- MENU DE ABAS -->
             <div class="menu-tabs">
-                <button class="tab-btn active" onclick="abrirAba('entrada')">📥 Entrada de Pacotes</button>
-                <button class="tab-btn" onclick="abrirAba('saida')">📤 Saída de Pacotes</button>
-                <button class="tab-btn" onclick="abrirAba('estoque')">📋 Estoque</button>
-                <button class="tab-btn hidden" id="tabRelatorio" onclick="abrirAba('relatorio')">📊 Relatórios</button>
-                <button class="tab-btn hidden" id="tabConfig" onclick="abrirAba('config')">⚙️ Configurações</button>
+                <button class="tab-btn active" onclick="abrirAba('entrada', event)">📥 Entrada de Pacotes</button>
+                <button class="tab-btn" onclick="abrirAba('saida', event)">📤 Saída de Pacotes</button>
+                <button class="tab-btn" onclick="abrirAba('estoque', event)">📋 Estoque</button>
+                <button class="tab-btn hidden" id="tabRelatorio" onclick="abrirAba('relatorio', event)">📊 Relatórios</button>
+                <button class="tab-btn hidden" id="tabConfig" onclick="abrirAba('config', event)">⚙️ Configurações</button>
+
+                <!-- NOVO: Botão Notificações com badge -->
+                <span class="notify-btn-wrapper">
+                    <button class="tab-btn" id="tabNotificacoes" onclick="abrirAba('notificacoes', event)">🔔 Notificações</button>
+                    <span id="badgeNotificacoes" class="notify-badge">0</span>
+                </span>
             </div>
 
             <!-- ABA: ENTRADA DE PACOTES -->
@@ -610,6 +677,36 @@
 
                 <h4 style="margin-top: 30px;">👥 Gerenciar Usuários</h4>
                 <p style="color: #666; margin-bottom: 20px;">Em desenvolvimento - Próxima versão</p>
+
+                <!-- NOTIFICAÇÕES - CONFIG -->
+                <h4 style="margin-top: 30px;">🔔 Notificações</h4>
+                <p style="color: #666; margin-bottom: 10px;">Defina os limites de dias para gerar alertas:</p>
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Dias alerta AMARELO (≥)</label>
+                        <input type="number" id="diasAlertaAmarelo" value="3" min="1" max="60">
+                    </div>
+                    <div class="input-group">
+                        <label>Dias alerta VERMELHO (≥)</label>
+                        <input type="number" id="diasAlertaVermelho" value="7" min="1" max="120">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA: NOTIFICAÇÕES -->
+            <div id="aba-notificacoes" class="tab-content">
+                <h3>🔔 Notificações</h3>
+                <p style="color:#666; margin: 8px 0 16px;">
+                    Alertas automáticos de pacotes parados no CD.<br>
+                    Critérios: <span id="labelAmarelo"></span> e <span id="labelVermelho"></span>.
+                </p>
+
+                <div id="listaNotificacoesVermelhas"></div>
+                <div id="listaNotificacoesAmarelas"></div>
+
+                <div id="semAlertas" class="alert alert-success hidden">
+                    ✅ Sem alertas no momento.
+                </div>
             </div>
         </div>
     </div>
@@ -638,12 +735,20 @@
             corredores: 5,
             prateleiras: 10,
             andares: 5,
-            nichos: 3
+            nichos: 3,
+            diasAlertaAmarelo: 3,
+            diasAlertaVermelho: 7
         };
         let streamEntrada = null;
         let streamSaida = null;
         let scannerEntradaAtivo = false;
         let scannerSaidaAtivo = false;
+
+        // Estado de notificações
+        let notificacoes = {
+            amarelas: [],
+            vermelhas: []
+        };
 
         // ==========================================
         // INICIALIZAÇÃO
@@ -651,6 +756,8 @@
         window.onload = async function() {
             await carregarConfiguracao();
             console.log('Sistema iniciado');
+            await atualizarNotificacoes();
+            atualizarBadgeNotificacoes();
         };
 
         // ==========================================
@@ -717,6 +824,8 @@
             if (tipoUsuario === 'admin') {
                 atualizarRelatorio();
             }
+            atualizarNotificacoes();
+            atualizarBadgeNotificacoes();
         }
 
         function fazerLogout() {
@@ -735,7 +844,7 @@
         // ==========================================
         // SISTEMA DE ABAS
         // ==========================================
-        function abrirAba(nomeAba) {
+        function abrirAba(nomeAba, event) {
             if (tipoUsuario === 'operador' && (nomeAba === 'relatorio' || nomeAba === 'config')) {
                 alert('❌ Você não tem permissão para acessar esta área!');
                 return;
@@ -751,12 +860,16 @@
             botoes.forEach(btn => btn.classList.remove('active'));
 
             document.getElementById('aba-' + nomeAba).classList.add('active');
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
 
             if (nomeAba === 'estoque') {
                 atualizarEstoque();
             } else if (nomeAba === 'relatorio' && tipoUsuario === 'admin') {
                 atualizarRelatorio();
+            } else if (nomeAba === 'notificacoes') {
+                renderizarNotificacoes();
             }
         }
 
@@ -796,15 +909,12 @@
         function iniciarScannerEntrada() {
             const video = document.getElementById('videoEntrada');
             
-            // Iniciar QuaggaJS para códigos de barras
             Quagga.init({
                 inputStream: {
                     name: "Live",
                     type: "LiveStream",
                     target: video,
-                    constraints: {
-                        facingMode: "environment"
-                    },
+                    constraints: { facingMode: "environment" },
                 },
                 decoder: {
                     readers: [
@@ -821,9 +931,7 @@
                 },
                 locate: true
             }, function(err) {
-                if (err) {
-                    console.error('Erro ao iniciar Quagga:', err);
-                }
+                if (err) console.error('Erro ao iniciar Quagga:', err);
                 Quagga.start();
             });
 
@@ -834,7 +942,6 @@
                 }
             });
 
-            // Iniciar scanner QR
             iniciarScannerQREntrada();
         }
 
@@ -869,9 +976,7 @@
         function processarCodigoEntrada(codigo) {
             if (!scannerEntradaAtivo) return;
 
-            if (navigator.vibrate) {
-                navigator.vibrate(200);
-            }
+            if (navigator.vibrate) navigator.vibrate(200);
 
             document.getElementById('scanStatusEntrada').textContent = '✅ Código detectado!';
             document.getElementById('scanStatusEntrada').style.background = 'rgba(40, 167, 69, 0.9)';
@@ -885,19 +990,13 @@
 
         function fecharCameraEntrada() {
             scannerEntradaAtivo = false;
-            
-            if (typeof Quagga !== 'undefined') {
-                Quagga.stop();
-            }
-            
+            if (typeof Quagga !== 'undefined') Quagga.stop();
             if (streamEntrada) {
                 streamEntrada.getTracks().forEach(track => track.stop());
                 streamEntrada = null;
             }
-            
             const video = document.getElementById('videoEntrada');
             video.srcObject = null;
-            
             document.getElementById('videoContainerEntrada').classList.add('hidden');
             document.getElementById('scanStatusEntrada').textContent = '📷 Posicione o código na área verde';
             document.getElementById('scanStatusEntrada').style.background = 'rgba(0,0,0,0.8)';
@@ -939,15 +1038,12 @@
         function iniciarScannerSaida() {
             const video = document.getElementById('videoSaida');
             
-            // Iniciar QuaggaJS para códigos de barras
             Quagga.init({
                 inputStream: {
                     name: "Live",
                     type: "LiveStream",
                     target: video,
-                    constraints: {
-                        facingMode: "environment"
-                    },
+                    constraints: { facingMode: "environment" },
                 },
                 decoder: {
                     readers: [
@@ -964,9 +1060,7 @@
                 },
                 locate: true
             }, function(err) {
-                if (err) {
-                    console.error('Erro ao iniciar Quagga:', err);
-                }
+                if (err) console.error('Erro ao iniciar Quagga:', err);
                 Quagga.start();
             });
 
@@ -977,7 +1071,6 @@
                 }
             });
 
-            // Iniciar scanner QR
             iniciarScannerQRSaida();
         }
 
@@ -1012,9 +1105,7 @@
         function processarCodigoSaida(codigo) {
             if (!scannerSaidaAtivo) return;
 
-            if (navigator.vibrate) {
-                navigator.vibrate(200);
-            }
+            if (navigator.vibrate) navigator.vibrate(200);
 
             document.getElementById('scanStatusSaida').textContent = '✅ Código detectado!';
             document.getElementById('scanStatusSaida').style.background = 'rgba(40, 167, 69, 0.9)';
@@ -1029,19 +1120,13 @@
 
         function fecharCameraSaida() {
             scannerSaidaAtivo = false;
-            
-            if (typeof Quagga !== 'undefined') {
-                Quagga.stop();
-            }
-            
+            if (typeof Quagga !== 'undefined') Quagga.stop();
             if (streamSaida) {
                 streamSaida.getTracks().forEach(track => track.stop());
                 streamSaida = null;
             }
-            
             const video = document.getElementById('videoSaida');
             video.srcObject = null;
-            
             document.getElementById('videoContainerSaida').classList.add('hidden');
             document.getElementById('scanStatusSaida').textContent = '📷 Posicione o código na área verde';
             document.getElementById('scanStatusSaida').style.background = 'rgba(0,0,0,0.8)';
@@ -1114,6 +1199,8 @@
                 atualizarDashboard();
                 alert('✅ Pacote registrado com sucesso!\n📍 Localização: ' + localizacao);
                 document.getElementById('localizacaoSugerida').textContent = gerarLocalizacao();
+
+                await atualizarNotificacoes();
 
             } catch (err) {
                 console.error('Erro ao registrar entrada:', err);
@@ -1219,8 +1306,10 @@
                 if (tipoUsuario === 'operador') {
                     alert('✅ Saída registrada com sucesso!');
                 } else {
-                    alert('✅ Saída registrada com sucesso!\n💰 Lucro: R$ 1,50');
+                    alert('✅ Saída registrado com sucesso!\n💰 Lucro: R$ 1,50');
                 }
+
+                await atualizarNotificacoes();
 
             } catch (err) {
                 console.error('Erro ao registrar saída:', err);
@@ -1270,6 +1359,8 @@
                     `;
                     tbody.appendChild(tr);
                 });
+
+                await atualizarNotificacoes(); // ajuda a manter sincronizado
 
             } catch (err) {
                 loading.classList.add('hidden');
@@ -1335,7 +1426,6 @@
                     .select('*')
                     .single();
 
-                // 🎯 CORREÇÃO AQUI: Mostra apenas total_saidas (pacotes processados)
                 document.getElementById('relTotalProcessado').textContent = relatorio?.total_saidas || 0;
                 document.getElementById('relLucroTotal').textContent = 'R$ ' + (relatorio?.lucro_total || 0).toFixed(2);
 
@@ -1391,13 +1481,22 @@
                         corredores: data.corredores,
                         prateleiras: data.prateleiras,
                         andares: data.andares,
-                        nichos: data.nichos
+                        nichos: data.nichos,
+                        diasAlertaAmarelo: data.dias_alerta_amarelo ?? 3,
+                        diasAlertaVermelho: data.dias_alerta_vermelho ?? 7
                     };
 
                     document.getElementById('numCorredores').value = data.corredores;
                     document.getElementById('numPrateleiras').value = data.prateleiras;
                     document.getElementById('numAndares').value = data.andares;
                     document.getElementById('numNichos').value = data.nichos;
+
+                    const inAm = document.getElementById('diasAlertaAmarelo');
+                    const inVm = document.getElementById('diasAlertaVermelho');
+                    if (inAm) inAm.value = configuracao.diasAlertaAmarelo;
+                    if (inVm) inVm.value = configuracao.diasAlertaVermelho;
+
+                    atualizarRotuloCriterios();
                 }
             } catch (err) {
                 console.error('Erro ao carregar configuração:', err);
@@ -1416,6 +1515,17 @@
                 configuracao.andares = parseInt(document.getElementById('numAndares').value);
                 configuracao.nichos = parseInt(document.getElementById('numNichos').value);
 
+                const inAm = document.getElementById('diasAlertaAmarelo');
+                const inVm = document.getElementById('diasAlertaVermelho');
+                if (inAm) configuracao.diasAlertaAmarelo = Math.max(1, parseInt(inAm.value || '3'));
+                if (inVm) configuracao.diasAlertaVermelho = Math.max(configuracao.diasAlertaAmarelo, parseInt(inVm.value || '7'));
+
+                const { data: cfgRow } = await supabase.from('configuracoes').select('id').single();
+                if (!cfgRow?.id) {
+                    alert('❌ Não foi possível localizar o registro de configurações.');
+                    return;
+                }
+
                 const { error } = await supabase
                     .from('configuracoes')
                     .update({
@@ -1423,17 +1533,224 @@
                         prateleiras: configuracao.prateleiras,
                         andares: configuracao.andares,
                         nichos: configuracao.nichos,
+                        dias_alerta_amarelo: configuracao.diasAlertaAmarelo,
+                        dias_alerta_vermelho: configuracao.diasAlertaVermelho,
                         updated_at: new Date().toISOString()
                     })
-                    .eq('id', (await supabase.from('configuracoes').select('id').single()).data.id);
+                    .eq('id', cfgRow.id);
 
                 if (error) throw error;
 
                 alert('✅ Configuração salva com sucesso!');
+                await atualizarNotificacoes();
 
             } catch (err) {
                 console.error('Erro ao salvar configuração:', err);
                 alert('❌ Erro ao salvar configuração. Tente novamente.');
+            }
+        }
+
+        // ==========================================
+        // NOTIFICAÇÕES
+        // ==========================================
+        function diasEntre(dataISO) {
+            const data = new Date(dataISO);
+            const hoje = new Date();
+            return Math.floor((hoje - data) / (1000 * 60 * 60 * 24));
+        }
+
+        async function atualizarNotificacoes() {
+            try {
+                const { data: pacotes, error } = await supabase
+                    .from('pacotes')
+                    .select('*')
+                    .eq('status', 'estoque');
+
+                if (error) throw error;
+
+                const amarelas = [];
+                const vermelhas = [];
+
+                const dAm = configuracao.diasAlertaAmarelo ?? 3;
+                const dVm = configuracao.diasAlertaVermelho ?? 7;
+
+                (pacotes || []).forEach(p => {
+                    const dias = diasEntre(p.data_entrada);
+                    if (dias >= dVm) {
+                        vermelhas.push({
+                            id: p.id,
+                            codigo: p.codigo,
+                            cliente: p.cliente,
+                            fornecedor: p.fornecedor,
+                            diasNoCD: dias,
+                            data_entrada: p.data_entrada,
+                            localizacao: p.localizacao
+                        });
+                    } else if (dias >= dAm) {
+                        amarelas.push({
+                            id: p.id,
+                            codigo: p.codigo,
+                            cliente: p.cliente,
+                            fornecedor: p.fornecedor,
+                            diasNoCD: dias,
+                            data_entrada: p.data_entrada,
+                            localizacao: p.localizacao
+                        });
+                    }
+                });
+
+                notificacoes.amarelas = amarelas.sort((a,b) => b.diasNoCD - a.diasNoCD);
+                notificacoes.vermelhas = vermelhas.sort((a,b) => b.diasNoCD - a.diasNoCD);
+
+                atualizarBadgeNotificacoes();
+                atualizarRotuloCriterios();
+
+                const abaAtiva = document.querySelector('#aba-notificacoes.active');
+                if (abaAtiva) renderizarNotificacoes();
+
+            } catch (err) {
+                console.error('Erro ao atualizar notificações:', err);
+            }
+        }
+
+        function atualizarBadgeNotificacoes() {
+            const badge = document.getElementById('badgeNotificacoes');
+            if (!badge) return;
+            const total = (notificacoes.amarelas?.length || 0) + (notificacoes.vermelhas?.length || 0);
+            if (total > 0) {
+                badge.textContent = total;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function atualizarRotuloCriterios() {
+            const lblA = document.getElementById('labelAmarelo');
+            const lblV = document.getElementById('labelVermelho');
+            if (lblA) lblA.textContent = `Amarelo ≥ ${configuracao.diasAlertaAmarelo} dias`;
+            if (lblV) lblV.textContent = `Vermelho ≥ ${configuracao.diasAlertaVermelho} dias`;
+        }
+
+        function renderizarNotificacoes() {
+            const contVerm = document.getElementById('listaNotificacoesVermelhas');
+            const contAmar = document.getElementById('listaNotificacoesAmarelas');
+            const semAlertas = document.getElementById('semAlertas');
+
+            contVerm.innerHTML = '';
+            contAmar.innerHTML = '';
+
+            const verm = notificacoes.vermelhas || [];
+            const amar = notificacoes.amarelas || [];
+
+            if (verm.length === 0 && amar.length === 0) {
+                semAlertas.classList.remove('hidden');
+                return;
+            } else {
+                semAlertas.classList.add('hidden');
+            }
+
+            if (verm.length > 0) {
+                const titulo = document.createElement('h4');
+                titulo.textContent = `🔴 Alertas críticos (${verm.length})`;
+                titulo.style.margin = '12px 0';
+                contVerm.appendChild(titulo);
+
+                verm.forEach(item => contVerm.appendChild(criarCardAlerta(item, 'red')));
+            }
+
+            if (amar.length > 0) {
+                const titulo = document.createElement('h4');
+                titulo.textContent = `🟡 Alertas (${amar.length})`;
+                titulo.style.margin = '12px 0';
+                contAmar.appendChild(titulo);
+
+                amar.forEach(item => contAmar.appendChild(criarCardAlerta(item, 'yellow')));
+            }
+        }
+
+        function criarCardAlerta(item, nivel) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'alert-item';
+
+            const left = document.createElement('div');
+            left.className = 'alert-left';
+
+            const title = document.createElement('div');
+            title.className = 'alert-title';
+            title.textContent = `Pacote ${item.codigo}`;
+
+            const meta = document.createElement('div');
+            meta.className = 'alert-meta';
+            const dataBR = new Date(item.data_entrada).toLocaleDateString('pt-BR');
+            meta.textContent = `Cliente: ${item.cliente} • Fornecedor: ${item.fornecedor} • Entrada: ${dataBR} • Local: ${item.localizacao}`;
+
+            const chip = document.createElement('span');
+            chip.className = `alert-chip ${nivel === 'red' ? 'alert-chip-red' : 'alert-chip-yellow'}`;
+            chip.textContent = `${item.diasNoCD} dia(s) no CD`;
+
+            left.appendChild(title);
+            left.appendChild(meta);
+            left.appendChild(chip);
+
+            const right = document.createElement('div');
+
+            const btnSaida = document.createElement('button');
+            btnSaida.className = 'btn btn-success btn-small';
+            btnSaida.textContent = '✅ Processar Saída';
+            btnSaida.onclick = async () => {
+                await processarSaidaDireta(item.codigo);
+            };
+
+            right.appendChild(btnSaida);
+
+            wrapper.appendChild(left);
+            wrapper.appendChild(right);
+            return wrapper;
+        }
+
+        async function processarSaidaDireta(codigo) {
+            try {
+                document.getElementById('codigoPacoteSaida').value = codigo;
+
+                const { data: pacote } = await supabase
+                    .from('pacotes')
+                    .select('*')
+                    .eq('codigo', codigo)
+                    .eq('status', 'estoque')
+                    .single();
+
+                if (!pacote) {
+                    alert('❌ Pacote não encontrado ou já entregue.');
+                    return;
+                }
+
+                await supabase
+                    .from('pacotes')
+                    .update({ status: 'entregue', data_saida: new Date().toISOString() })
+                    .eq('id', pacote.id);
+
+                await supabase
+                    .from('historico')
+                    .insert([{
+                        tipo: 'SAÍDA',
+                        pacote_id: pacote.id,
+                        codigo_pacote: pacote.codigo,
+                        fornecedor: pacote.fornecedor,
+                        cliente: pacote.cliente,
+                        localizacao: pacote.localizacao,
+                        usuario: usuarioLogado
+                    }]);
+
+                await atualizarDashboard();
+                await atualizarEstoque();
+                await atualizarNotificacoes();
+
+                alert('✅ Saída registrada com sucesso (via Notificações)!');
+
+            } catch (err) {
+                console.error('Erro ao processar saída direta:', err);
+                alert('❌ Erro ao processar saída. Tente novamente.');
             }
         }
     </script>
