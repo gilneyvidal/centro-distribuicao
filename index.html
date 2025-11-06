@@ -270,11 +270,56 @@
             width: 100%;
             max-width: 500px;
             margin: 20px auto;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
         }
 
         #video {
             width: 100%;
+            display: block;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 60%;
+            border: 3px solid #28a745;
             border-radius: 10px;
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+
+        .scanner-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #28a745;
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            0%, 100% { top: 0; }
+            50% { top: 100%; }
+        }
+
+        .scan-status {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
         }
 
         .btn-small {
@@ -389,10 +434,15 @@
                 <h3>📥 Registrar Entrada de Pacote</h3>
                 
                 <div style="margin: 20px 0;">
-                    <button class="btn btn-success" onclick="abrirCamera()">📷 Escanear Código</button>
+                    <button class="btn btn-success" onclick="abrirCamera('entrada')">📷 Escanear Código</button>
                     <div id="video-container" class="hidden">
-                        <video id="video" autoplay></video>
-                        <button class="btn btn-danger" onclick="fecharCamera()">Fechar Câmera</button>
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas"></canvas>
+                        <div class="scanner-overlay">
+                            <div class="scanner-line"></div>
+                        </div>
+                        <div class="scan-status" id="scanStatus">📷 Posicione o código na área verde</div>
+                        <button class="btn btn-danger" onclick="fecharCamera()" style="margin: 10px;">Fechar Câmera</button>
                     </div>
                 </div>
 
@@ -432,7 +482,7 @@
                 <h3>📤 Registrar Saída de Pacote</h3>
                 
                 <div style="margin: 20px 0;">
-                    <button class="btn btn-success" onclick="abrirCameraSaida()">📷 Escanear Código</button>
+                    <button class="btn btn-success" onclick="abrirCamera('saida')">📷 Escanear Código</button>
                 </div>
 
                 <div class="input-group">
@@ -555,8 +605,10 @@
         </div>
     </div>
 
-    <!-- BIBLIOTECA SUPABASE -->
+    <!-- BIBLIOTECAS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
     <script>
         // ==========================================
@@ -579,6 +631,9 @@
             andares: 5,
             nichos: 3
         };
+        let stream = null;
+        let scannerAtivo = false;
+        let tipoScanner = null; // 'entrada' ou 'saida'
 
         // ==========================================
         // INICIALIZAÇÃO
@@ -601,7 +656,6 @@
             }
 
             try {
-                // Buscar usuário no banco
                 const { data, error } = await supabase
                     .from('usuarios')
                     .select('*')
@@ -657,6 +711,7 @@
 
         function fazerLogout() {
             if (confirm('Deseja realmente sair?')) {
+                fecharCamera();
                 document.getElementById('telaLogin').classList.remove('hidden');
                 document.getElementById('telaSistema').classList.add('hidden');
                 document.getElementById('loginUsuario').value = '';
@@ -675,6 +730,8 @@
                 return;
             }
 
+            fecharCamera();
+
             const abas = document.querySelectorAll('.tab-content');
             abas.forEach(aba => aba.classList.remove('active'));
 
@@ -692,38 +749,159 @@
         }
 
         // ==========================================
-        // CÂMERA
+        // SCANNER DE CÓDIGOS (BARRAS + QR CODE)
         // ==========================================
-        let stream = null;
-
-        function abrirCamera() {
+        function abrirCamera(tipo) {
+            tipoScanner = tipo;
             const videoContainer = document.getElementById('video-container');
             const video = document.getElementById('video');
             
             videoContainer.classList.remove('hidden');
+            scannerAtivo = true;
 
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                .then(function(s) {
-                    stream = s;
-                    video.srcObject = stream;
-                    alert('📷 Câmera ativada! Posicione o código de barras/QR Code.\n\n⚠️ NOTA: Para leitura automática, você precisará integrar uma biblioteca como QuaggaJS ou ZXing. Por enquanto, digite o código manualmente.');
-                })
-                .catch(function(err) {
-                    alert('❌ Erro ao acessar câmera: ' + err.message);
-                    videoContainer.classList.add('hidden');
-                });
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            })
+            .then(function(s) {
+                stream = s;
+                video.srcObject = stream;
+                
+                video.onloadedmetadata = function() {
+                    video.play();
+                    iniciarScanner();
+                };
+            })
+            .catch(function(err) {
+                alert('❌ Erro ao acessar câmera: ' + err.message);
+                videoContainer.classList.add('hidden');
+                scannerAtivo = false;
+            });
+        }
+
+        function iniciarScanner() {
+            // Iniciar QuaggaJS para códigos de barras
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#video'),
+                    constraints: {
+                        facingMode: "environment"
+                    },
+                },
+                decoder: {
+                    readers: [
+                        "code_128_reader",
+                        "ean_reader",
+                        "ean_8_reader",
+                        "code_39_reader",
+                        "code_39_vin_reader",
+                        "codabar_reader",
+                        "upc_reader",
+                        "upc_e_reader",
+                        "i2of5_reader"
+                    ]
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    console.error('Erro ao iniciar Quagga:', err);
+                    // Continuar apenas com QR Code
+                    iniciarScannerQR();
+                    return;
+                }
+                Quagga.start();
+                iniciarScannerQR();
+            });
+
+            Quagga.onDetected(function(result) {
+                if (scannerAtivo && result.codeResult && result.codeResult.code) {
+                    const codigo = result.codeResult.code;
+                    processarCodigoLido(codigo);
+                }
+            });
+        }
+
+        function iniciarScannerQR() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+
+            function verificarQRCode() {
+                if (!scannerAtivo) return;
+
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    if (code && code.data) {
+                        processarCodigoLido(code.data);
+                        return;
+                    }
+                }
+
+                requestAnimationFrame(verificarQRCode);
+            }
+
+            verificarQRCode();
+        }
+
+        function processarCodigoLido(codigo) {
+            if (!scannerAtivo) return;
+
+            // Vibrar (se disponível)
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+            }
+
+            // Atualizar status
+            document.getElementById('scanStatus').textContent = '✅ Código detectado!';
+            document.getElementById('scanStatus').style.background = 'rgba(40, 167, 69, 0.9)';
+
+            // Preencher campo apropriado
+            if (tipoScanner === 'entrada') {
+                document.getElementById('codigoPacote').value = codigo;
+            } else if (tipoScanner === 'saida') {
+                document.getElementById('codigoPacoteSaida').value = codigo;
+            }
+
+            // Fechar câmera após 1 segundo
+            setTimeout(() => {
+                fecharCamera();
+                
+                // Se for saída, buscar automaticamente
+                if (tipoScanner === 'saida') {
+                    buscarPacote();
+                }
+            }, 1000);
         }
 
         function fecharCamera() {
+            scannerAtivo = false;
+            
+            if (typeof Quagga !== 'undefined') {
+                Quagga.stop();
+            }
+            
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
             }
+            
+            const video = document.getElementById('video');
+            video.srcObject = null;
+            
             document.getElementById('video-container').classList.add('hidden');
-        }
-
-        function abrirCameraSaida() {
-            abrirCamera();
+            document.getElementById('scanStatus').textContent = '📷 Posicione o código na área verde';
+            document.getElementById('scanStatus').style.background = 'rgba(0,0,0,0.8)';
         }
 
         // ==========================================
@@ -742,7 +920,6 @@
             }
 
             try {
-                // Verificar se código já existe
                 const { data: existente } = await supabase
                     .from('pacotes')
                     .select('codigo')
@@ -757,7 +934,6 @@
 
                 const localizacao = gerarLocalizacao();
 
-                // Inserir pacote
                 const { data: pacote, error: erroPacote } = await supabase
                     .from('pacotes')
                     .insert([{
@@ -774,7 +950,6 @@
 
                 if (erroPacote) throw erroPacote;
 
-                // Registrar no histórico
                 await supabase
                     .from('historico')
                     .insert([{
@@ -787,7 +962,6 @@
                         usuario: usuarioLogado
                     }]);
 
-                // Limpar formulário
                 document.getElementById('codigoPacote').value = '';
                 document.getElementById('fornecedor').value = '';
                 document.getElementById('cliente').value = '';
@@ -875,13 +1049,11 @@
                     return;
                 }
 
-                // Atualizar status do pacote
                 await supabase
                     .from('pacotes')
                     .update({ status: 'entregue', data_saida: new Date().toISOString() })
                     .eq('id', pacote.id);
 
-                // Registrar no histórico
                 await supabase
                     .from('historico')
                     .insert([{
@@ -982,13 +1154,11 @@
         // ==========================================
         async function atualizarDashboard() {
             try {
-                // Contar pacotes em estoque
                 const { count: totalEstoque } = await supabase
                     .from('pacotes')
                     .select('*', { count: 'exact', head: true })
                     .eq('status', 'estoque');
 
-                // Buscar dados do relatório
                 const { data: relatorio } = await supabase
                     .from('relatorio_lucros')
                     .select('*')
@@ -1017,7 +1187,6 @@
             loading.classList.remove('hidden');
 
             try {
-                // Buscar dados do relatório
                 const { data: relatorio } = await supabase
                     .from('relatorio_lucros')
                     .select('*')
@@ -1027,7 +1196,6 @@
                     (relatorio?.total_entradas || 0) + (relatorio?.total_saidas || 0);
                 document.getElementById('relLucroTotal').textContent = 'R$ ' + (relatorio?.lucro_total || 0).toFixed(2);
 
-                // Buscar histórico
                 const { data: historico, error } = await supabase
                     .from('historico')
                     .select('*')
